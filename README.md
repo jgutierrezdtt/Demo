@@ -1,63 +1,79 @@
-## Paso 1 de 3 — Añadir análisis SAST con Semgrep
+## Paso 2 de 3 — Corregir las vulnerabilidades detectadas
 
-¡El tutorial ha comenzado! 🎉
+¡Semgrep ha analizado tu código! 🔍
 
-### Contexto
+### Qué encontró Semgrep
 
-Este repositorio incluye el archivo `src/app.py` con varias vulnerabilidades de seguridad.  
-En este paso añadirás un **workflow de análisis estático (SAST)** con Semgrep para detectarlas automáticamente en cada push.
+Abre la pestaña **Actions** y revisa el último run de "SAST con Semgrep".  
+Semgrep habrá detectado estas vulnerabilidades en `src/app.py`:
+
+| # | Vulnerabilidad | Tipo | Línea aprox. |
+|---|---------------|------|--------------|
+| 1 | Credenciales hardcodeadas | Secrets | ~9-10 |
+| 2 | SQL Injection | Inyección | ~19 |
+| 3 | Command Injection (`os.system`) | Inyección | ~27 |
 
 ### Tu tarea
 
-Crea el archivo `.github/workflows/sast.yml` con el siguiente contenido:
+Abre `src/app.py` y aplica las siguientes tres correcciones:
 
-```yaml
-name: SAST con Semgrep
-on:
-  push:
-    branches: [main]
-  pull_request:
+---
 
-permissions:
-  contents: read
+#### Corrección 1 — Eliminar credenciales hardcodeadas
 
-jobs:
-  semgrep:
-    name: Análisis estático
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: semgrep/semgrep-action@v1
-        with:
-          config: >-
-            p/python
-            p/secrets
+```python
+# ❌ ANTES (vulnerable)
+DB_PASSWORD = "admin123"
+API_KEY = "sk-prod-abc123xyz789"
+
+# ✅ DESPUÉS (seguro)
+import os
+DB_PASSWORD = os.environ.get("DB_PASSWORD", "")
+API_KEY = os.environ.get("API_KEY", "")
 ```
 
-### Cómo hacerlo
+---
 
-**Opción A — Desde la interfaz web de GitHub:**
-1. Ve a tu repositorio → **Add file** → **Create new file**
-2. En el nombre del archivo escribe exactamente: `.github/workflows/sast.yml`
-3. Pega el contenido de arriba
-4. Haz click en **Commit changes** → **Commit directly to the `main` branch**
+#### Corrección 2 — SQL Injection → consulta parametrizada
 
-**Opción B — Desde la terminal:**
+```python
+# ❌ ANTES (vulnerable)
+query = "SELECT * FROM users WHERE name = '" + username + "'"
+cursor.execute(query)
+
+# ✅ DESPUÉS (seguro)
+query = "SELECT * FROM users WHERE name = ?"
+cursor.execute(query, (username,))
+```
+
+---
+
+#### Corrección 3 — Command Injection → subprocess con lista de argumentos
+
+```python
+# ❌ ANTES (vulnerable)
+os.system("ping -c 1 " + host)
+
+# ✅ DESPUÉS (seguro)
+import subprocess
+subprocess.run(["ping", "-c", "1", host], check=True)
+```
+
+---
+
+### Una vez aplicadas las correcciones
+
+Haz push de los cambios:
+
 ```bash
-mkdir -p .github/workflows
-# crea .github/workflows/sast.yml con el contenido de arriba
-git add .github/workflows/sast.yml
-git commit -m "ci: add Semgrep SAST workflow"
+git add src/app.py
+git commit -m "fix: remediate SQL injection, command injection and hardcoded secrets"
 git push
 ```
 
-### ¿Qué pasará?
+O desde la interfaz web: edita `src/app.py` directamente y haz commit en `main`.
 
-Cuando hagas push de `sast.yml`:
-- Semgrep analizará `src/app.py` automáticamente
-- Encontrará las vulnerabilidades presentes en el código
-- Verás los resultados en la pestaña **Actions** de tu repositorio
-- Este README se actualizará al **Paso 2** ✅
+El workflow verificará que las tres vulnerabilidades han sido corregidas y este README se actualizará al **Paso 3** ✅
 
 ---
-*Paso 1 de 3 · Tutorial de Seguridad en Pipelines*
+*Paso 2 de 3 · Tutorial de Seguridad en Pipelines*
