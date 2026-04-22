@@ -1,0 +1,20 @@
+name: SAST con Semgrep
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Análisis estático
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/python
+            p/secrets
